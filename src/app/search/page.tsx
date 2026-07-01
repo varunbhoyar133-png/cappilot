@@ -21,6 +21,10 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  // Pagination State
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('ALL');
@@ -41,10 +45,56 @@ export default function SearchPage() {
   ];
 
   useEffect(() => {
-    fetchColleges();
+    fetchColleges(true);
   }, [selectedDistrict, selectedType, isAutonomous, hasHostel, selectedBranch]);
 
-  const fetchColleges = async () => {
+  const fetchColleges = async (reset = false) => {
+    setLoading(true);
+    setError('');
+    const targetOffset = reset ? 0 : offset;
+    if (reset) {
+      setOffset(0);
+      setHasMore(true);
+    }
+    
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (selectedDistrict !== 'ALL') params.append('district', selectedDistrict);
+      if (selectedType !== 'ALL') params.append('type', selectedType);
+      if (isAutonomous !== 'ALL') params.append('isAutonomous', isAutonomous);
+      if (hasHostel !== 'ALL') params.append('hasHostel', hasHostel);
+      if (selectedBranch !== 'ALL') params.append('branch', selectedBranch);
+      
+      params.append('limit', '50');
+      params.append('offset', targetOffset.toString());
+
+      const res = await fetch(`/api/colleges?${params.toString()}`);
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setError(data.error || 'Failed to fetch colleges');
+      } else {
+        const newColleges = data.colleges || [];
+        if (targetOffset === 0) {
+          setColleges(newColleges);
+        } else {
+          setColleges(prev => [...prev, ...newColleges]);
+        }
+        if (newColleges.length < 50) {
+          setHasMore(false);
+        } else {
+          setHasMore(true);
+        }
+      }
+    } catch (err) {
+      setError('Connection failed. Please retry.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCollegesWithOffset = async (currentOffset: number) => {
     setLoading(true);
     setError('');
     try {
@@ -55,6 +105,9 @@ export default function SearchPage() {
       if (isAutonomous !== 'ALL') params.append('isAutonomous', isAutonomous);
       if (hasHostel !== 'ALL') params.append('hasHostel', hasHostel);
       if (selectedBranch !== 'ALL') params.append('branch', selectedBranch);
+      
+      params.append('limit', '50');
+      params.append('offset', currentOffset.toString());
 
       const res = await fetch(`/api/colleges?${params.toString()}`);
       const data = await res.json();
@@ -62,7 +115,13 @@ export default function SearchPage() {
       if (!res.ok) {
         setError(data.error || 'Failed to fetch colleges');
       } else {
-        setColleges(data.colleges || []);
+        const newColleges = data.colleges || [];
+        setColleges(prev => [...prev, ...newColleges]);
+        if (newColleges.length < 50) {
+          setHasMore(false);
+        } else {
+          setHasMore(true);
+        }
       }
     } catch (err) {
       setError('Connection failed. Please retry.');
@@ -73,7 +132,13 @@ export default function SearchPage() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchColleges();
+    fetchColleges(true);
+  };
+
+  const handleLoadMore = () => {
+    const nextOffset = offset + 50;
+    setOffset(nextOffset);
+    fetchCollegesWithOffset(nextOffset);
   };
 
   return (
@@ -191,7 +256,7 @@ export default function SearchPage() {
         </div>
       )}
 
-      {loading ? (
+      {loading && colleges.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-3">
           <div className="h-10 w-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Loading directory listings...</p>
@@ -203,7 +268,8 @@ export default function SearchPage() {
           <p className="text-xs text-slate-400 mt-1">Try resetting district, type, or search queries.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {colleges.map((college, idx) => (
             <div key={idx} className="glass-panel rounded-2xl p-6 hover:shadow-md transition-all duration-300 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
               
@@ -310,6 +376,24 @@ export default function SearchPage() {
             </div>
           ))}
         </div>
+        
+        {hasMore && !loading && colleges.length >= 50 && (
+          <div className="flex justify-center pt-8">
+            <button
+              onClick={handleLoadMore}
+              className="px-6 py-3 font-semibold text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-slate-900 dark:hover:bg-slate-850 border border-indigo-200/50 dark:border-slate-800 rounded-xl transition duration-200 shadow-md shadow-indigo-500/5 hover:shadow-indigo-500/10 cursor-pointer"
+            >
+              Load More Colleges
+            </button>
+          </div>
+        )}
+        
+        {loading && colleges.length > 0 && (
+          <div className="flex justify-center pt-8 text-sm text-slate-500 dark:text-slate-400">
+            Loading next page...
+          </div>
+        )}
+        </>
       )}
     </div>
   );

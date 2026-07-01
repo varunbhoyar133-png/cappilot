@@ -137,8 +137,11 @@ export async function GET(request: Request) {
     const hasHostel = searchParams.get('hasHostel');
     const branch = searchParams.get('branch') || '';
     
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+    
     // Log search query for analytics
-    if (search.trim() !== '') {
+    if (search.trim() !== '' && offset === 0) {
       try {
         await prisma.searchLog.create({
           data: {
@@ -190,7 +193,8 @@ export async function GET(request: Request) {
 
       colleges = await prisma.college.findMany({
         where,
-        take: 50, // Limit results to top 50 matches for maximum response speed
+        take: limit,
+        skip: offset,
         include: {
           choices: {
             include: {
@@ -204,7 +208,7 @@ export async function GET(request: Request) {
         ]
       });
 
-      if (colleges.length === 0) {
+      if (colleges.length === 0 && offset === 0) {
         isDemoMode = true;
       }
     } catch (dbError) {
@@ -238,7 +242,8 @@ export async function GET(request: Request) {
         filteredMocks = filteredMocks.filter(c => c.choices.some(ch => ch.courseCode === branch));
       }
 
-      return NextResponse.json({ success: true, isDemo: true, colleges: filteredMocks });
+      const slicedMocks = filteredMocks.slice(offset, offset + limit);
+      return NextResponse.json({ success: true, isDemo: true, colleges: slicedMocks });
     }
 
     return NextResponse.json({ success: true, colleges });
