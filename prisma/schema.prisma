@@ -1,0 +1,153 @@
+datasource db {
+  provider  = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  passwordHash    String
+  name            String
+  percentile      Float
+  category        String           // e.g. OPEN, OBC, SC, ST, EWS
+  gender          String           // MALE, FEMALE
+  homeUniversity  String           // e.g. Savitribai Phule Pune University
+  isTfws          Boolean          @default(false)
+  isPwd           Boolean          @default(false)
+  isDefense       Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  favourites      Favourite[]
+  preferenceLists PreferenceList[]
+  chatHistories   ChatHistory[]
+}
+
+model College {
+  code                String          @id // 5-digit college code (e.g. "01002")
+  name                String
+  type                String          // e.g. "Government", "Private", "Government Aided"
+  isAutonomous        Boolean         @default(false)
+  isMinority          Boolean         @default(false)
+  minorityType        String?         // e.g. "Linguistic - Hindi", "Religious - Muslim"
+  district            String
+  city                String
+  fees                Float           @default(0) // Annual Tuition Fee
+  avgPackage          Float?          // in LPA (Lakhs Per Annum)
+  highestPackage      Float?          // in LPA
+  medianPackage       Float?          // in LPA
+  placementPercentage Float?          // e.g. 85.5
+  hasHostel           Boolean         @default(false)
+  hostelFees          Float?          // Annual hostel charges
+  website             String?
+  naacRating          String?         // e.g. "A++"
+  nbaAccredited       Boolean         @default(false)
+  googleMapsUrl       String?
+  nirfRank            Int?
+  logoUrl             String?
+  views               Int             @default(0) // Used for analytics dashboard
+
+  choices             CollegeCourse[]
+  clicks              CollegeClick[]
+}
+
+model Course {
+  code      String          @id // 4-digit course code (e.g. "2421")
+  name      String
+  choices   CollegeCourse[]
+}
+
+model CollegeCourse {
+  choiceCode       String      @id // 10-digit choice code (e.g. "0100224210")
+  collegeCode      String
+  courseCode       String
+  status           String      // e.g. "Government Autonomous", "Un-Aided"
+  homeUniversity   String      // e.g. "Shivaji University"
+  sanctionedIntake Int         @default(0)
+  msSeats          Int         @default(0)
+  minoritySeats    Int         @default(0)
+  allIndiaSeats    Int         @default(0)
+  instituteSeats   Int         @default(0)
+  orphanSeats      Int         @default(0)
+  ewsSeats         Int         @default(0)
+  tfwsSeats        Int         @default(0)
+  tfwsChoiceCode   String?
+  
+  college          College     @relation(fields: [collegeCode], references: [code])
+  course           Course      @relation(fields: [courseCode], references: [code])
+  cutoffs          Cutoff[]
+  favourites       Favourite[]
+}
+
+model Cutoff {
+  id          Int           @id @default(autoincrement())
+  choiceCode  String
+  year        String        // e.g. "2024-25", "2023-24", "2022-23"
+  round       Int           // 1, 2, 3
+  category    String        // e.g. GOPENS, LOBCH, EWS, TFWS, MI
+  meritRank   Int
+  percentile  Float
+  stage       String        // I, II, III
+  
+  choice      CollegeCourse @relation(fields: [choiceCode], references: [choiceCode])
+  
+  @@unique([choiceCode, year, round, category, stage])
+}
+
+model Favourite {
+  id         Int           @id @default(autoincrement())
+  userId     String
+  choiceCode String
+  
+  user       User          @relation(fields: [userId], references: [id])
+  choice     CollegeCourse @relation(fields: [choiceCode], references: [choiceCode])
+  
+  @@unique([userId, choiceCode])
+}
+
+model PreferenceList {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  choiceCodes Json     // Array of choice code strings in preference order
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model ChatHistory {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  role      String   // "user" or "model"
+  message   String
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model CollegeClick {
+  id          Int      @id @default(autoincrement())
+  collegeCode String
+  timestamp   DateTime @default(now())
+  
+  college     College  @relation(fields: [collegeCode], references: [code])
+}
+
+model SearchLog {
+  id        Int      @id @default(autoincrement())
+  query     String
+  type      String   // "college", "branch", "general"
+  timestamp DateTime @default(now())
+}
+
+model PredictionLog {
+  id         Int      @id @default(autoincrement())
+  percentile Float
+  category   String
+  branch     String
+  timestamp  DateTime @default(now())
+}
