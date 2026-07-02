@@ -12,15 +12,10 @@ export default function Navbar() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [user, setUser] = useState<any>(null);
 
-  // Initialize theme from localStorage
+  // Enforce dark mode always
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme as 'light' | 'dark');
-    if (savedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    setTheme('dark');
+    document.documentElement.classList.add('dark');
   }, []);
 
   // Fetch session data on mount and pathname change
@@ -46,17 +41,6 @@ export default function Navbar() {
     }
     checkSession();
   }, [pathname]);
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -114,14 +98,6 @@ export default function Navbar() {
 
           {/* Theme & User Profile Menu */}
           <div className="hidden md:flex items-center space-x-3">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-indigo-400 transition-all duration-200"
-              aria-label="Toggle Theme"
-            >
-              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </button>
-
             {user ? (
               <div className="flex items-center space-x-3 pl-3 border-l border-slate-200 dark:border-slate-800">
                 <div className="flex flex-col text-right">
@@ -156,12 +132,6 @@ export default function Navbar() {
 
           {/* Mobile menu button */}
           <div className="flex items-center space-x-2 md:hidden">
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900"
-            >
-              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </button>
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-lg text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900"
