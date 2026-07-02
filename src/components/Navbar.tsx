@@ -74,9 +74,7 @@ export default function Navbar() {
     { name: 'Predictor', path: '/predictor' },
     { name: 'Search', path: '/search' },
     { name: 'Compare', path: '/compare' },
-    { name: 'Preference List', path: '/preferences' },
-    { name: 'Trends', path: '/trends' },
-    { name: 'AI Counselling', path: '/counselling' }
+    { name: 'Preference List', path: '/preferences' }
   ];
 
   return (

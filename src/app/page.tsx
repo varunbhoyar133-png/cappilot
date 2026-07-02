@@ -165,20 +165,6 @@ export default async function HomePage() {
       href: '/preferences',
       icon: ListOrdered,
       color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400'
-    },
-    {
-      title: 'Cutoff Trends',
-      description: 'Visualize historical CAP cutoff changes over 2022, 2023, and 2024.',
-      href: '/trends',
-      icon: LineChart,
-      color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
-    },
-    {
-      title: 'AI Counselling Chatbot',
-      description: 'Talk to our context-aware agent to resolve your career and college questions.',
-      href: '/counselling',
-      icon: GraduationCap,
-      color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
     }
   ];
 
@@ -203,12 +189,6 @@ export default async function HomePage() {
               className="px-5 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all duration-200"
             >
               Start College Predictor
-            </Link>
-            <Link
-              href="/counselling"
-              className="px-5 py-3 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 dark:text-slate-200 dark:bg-slate-900/50 dark:border-slate-800 dark:hover:bg-slate-900 transition-all duration-200"
-            >
-              Consult AI Advisor
             </Link>
           </div>
         </div>
