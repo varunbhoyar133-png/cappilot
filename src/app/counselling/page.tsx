@@ -23,6 +23,7 @@ export default function CounsellingPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -43,6 +44,24 @@ export default function CounsellingPage() {
     "Compare VIT Pune vs Cummins Pune",
     "Should I pick AI & Data Science over Core Computer Engineering?"
   ];
+
+  const parseMarkdown = (text: string) => {
+    // First split by bold markers
+    const boldParts = text.split(/\*\*(.*?)\*\*/g);
+    return boldParts.map((boldPart, bIdx) => {
+      if (bIdx % 2 === 1) {
+        return <strong key={`b-${bIdx}`} className="font-extrabold text-slate-900 dark:text-white">{boldPart}</strong>;
+      }
+      // For non-bold parts, split by italic markers
+      const italicParts = boldPart.split(/\*(.*?)\*/g);
+      return italicParts.map((italicPart, iIdx) => {
+        if (iIdx % 2 === 1) {
+          return <em key={`i-${iIdx}`} className="italic font-medium">{italicPart}</em>;
+        }
+        return italicPart;
+      });
+    });
+  };
 
   const handleSend = async (textToSend = input) => {
     if (!textToSend.trim()) return;
@@ -67,6 +86,11 @@ export default function CounsellingPage() {
       const data = await res.json();
       if (res.ok) {
         setMessages([...updatedMessages, { role: 'model', message: data.message }]);
+        if (data.isFallback) {
+          setIsFallbackMode(true);
+        } else {
+          setIsFallbackMode(false);
+        }
       } else {
         setMessages([
           ...updatedMessages,
@@ -97,8 +121,15 @@ export default function CounsellingPage() {
             <Bot className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-sm font-black text-slate-800 dark:text-white leading-tight">AI Counselling Assistant</h2>
-            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Context: {user ? `${user.percentile}%ile | ${user.category}` : 'Anonymous Candidate'}</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-black text-slate-800 dark:text-white leading-tight">AI Counselling Assistant</h2>
+              {isFallbackMode && (
+                <span className="text-[9px] font-extrabold bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-500/25 animate-pulse">
+                  Fallback Mode
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">Context: {user ? `${user.percentile}%ile | ${user.category}` : 'Anonymous Candidate'}</p>
           </div>
         </div>
         
@@ -111,6 +142,16 @@ export default function CounsellingPage() {
 
       {/* Main chat log container */}
       <div className="flex-grow overflow-y-auto p-6 space-y-4">
+        {isFallbackMode && (
+          <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-[11px] text-amber-800 dark:text-amber-300 font-medium animate-slide-up">
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+            <div>
+              <p className="font-bold">Offline Fallback Mode Active</p>
+              <p className="opacity-90 mt-0.5">The Google Gemini API Key is missing or invalid in the environment variables. The assistant is operating in offline mode using a rule-based expert advisor.</p>
+            </div>
+          </div>
+        )}
+
         {messages.map((m, idx) => {
           const isBot = m.role === 'model' || m.role === 'assistant';
           return (
@@ -128,21 +169,37 @@ export default function CounsellingPage() {
 
               <div className={`p-4 rounded-2xl text-xs font-medium leading-relaxed ${
                 isBot 
-                  ? 'bg-slate-100 dark:bg-slate-900 border border-slate-200/30 dark:border-slate-800/30 text-slate-700 dark:text-slate-355' 
+                  ? 'bg-slate-100 dark:bg-slate-900 border border-slate-200/30 dark:border-slate-800/30 text-slate-700 dark:text-slate-300' 
                   : 'bg-indigo-600 text-white shadow-md shadow-indigo-500/10'
               }`}>
                 {/* Simple markdown list linebreaks parser */}
-                {m.message.split('\n').map((line: string, i: number) => (
-                  <p key={i} className={line.trim() === '' ? 'h-2' : 'mb-1'}>
-                    {line.startsWith('- ') || line.startsWith('* ') ? (
-                      <span className="pl-2 block font-semibold">&bull; {line.substring(2)}</span>
-                    ) : line.startsWith('1. ') || line.startsWith('2. ') || line.startsWith('3. ') ? (
-                      <span className="pl-2 block font-bold">{line}</span>
-                    ) : (
-                      line
-                    )}
-                  </p>
-                ))}
+                {m.message.split('\n').map((line: string, i: number) => {
+                  if (line.trim() === '') return <div key={i} className="h-2" />;
+                  
+                  let content = line;
+                  let isBullet = false;
+                  let isNumbered = false;
+                  
+                  if (line.startsWith('- ') || line.startsWith('* ')) {
+                    content = line.substring(2);
+                    isBullet = true;
+                  } else if (/^\d+\.\s/.test(line)) {
+                    isBullet = false;
+                    isNumbered = true;
+                  }
+                  
+                  return (
+                    <p key={i} className="mb-1">
+                      {isBullet ? (
+                        <span className="pl-2 block font-semibold">&bull; {parseMarkdown(content)}</span>
+                      ) : isNumbered ? (
+                        <span className="pl-2 block font-bold">{parseMarkdown(content)}</span>
+                      ) : (
+                        parseMarkdown(line)
+                      )}
+                    </p>
+                  );
+                })}
               </div>
             </div>
           );

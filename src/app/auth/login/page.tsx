@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GraduationCap, ArrowRight, Lock, Mail, AlertCircle } from 'lucide-react';
+import Script from 'next/script';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +12,34 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Declare global callback for Google GSI API library
+    (window as any).handleGoogleSignInResponse = async (response: any) => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        });
+        
+        const data = await res.json();
+        if (res.ok && data?.success) {
+          localStorage.setItem('cap_user', JSON.stringify(data.user));
+          router.push('/');
+          router.refresh();
+        } else {
+          setError(data?.error || 'Google Sign-In failed');
+        }
+      } catch (err) {
+        setError('Connection error during Google Sign-In');
+      } finally {
+        setLoading(false);
+      }
+    };
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +131,39 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200 dark:border-slate-800"></div>
+          </div>
+          <div className="relative flex justify-center text-xs font-semibold uppercase">
+            <span className="bg-slate-50 dark:bg-slate-950 px-2 text-slate-550 dark:text-slate-400">Or continue with</span>
+          </div>
+        </div>
+
+        <div className="flex justify-center w-full">
+          <div id="g_id_onload"
+               data-client_id={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "1032338166567-dummy.apps.googleusercontent.com"}
+               data-context="signin"
+               data-ux_mode="popup"
+               data-callback="handleGoogleSignInResponse"
+               data-auto_prompt="false">
+          </div>
+          <div className="g_id_signin w-full flex justify-center"
+               data-type="standard"
+               data-shape="rectangular"
+               data-theme="outline"
+               data-text="signin_with"
+               data-size="large"
+               data-logo_alignment="left"
+               data-width="100%">
+          </div>
+        </div>
+
+        <Script 
+          src="https://accounts.google.com/gsi/client" 
+          strategy="lazyOnload" 
+        />
 
         <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
           New to CapPilot?{' '}

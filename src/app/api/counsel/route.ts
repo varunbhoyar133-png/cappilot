@@ -102,19 +102,26 @@ Rules:
 5. Do NOT generate cutoffs or predictions. The candidate already has predictor results. Explain the options, placements, branches, and lists.
 6. Footer should include professional advice.`;
 
+        // Clean message history (filter out the initial model greeting to start with a 'user' message)
+        let apiMessages = messages;
+        if (messages.length > 0 && messages[0].role === 'model') {
+          apiMessages = messages.slice(1);
+        }
+
         // Format message history
-        const chatContents = messages.map((m: any) => ({
+        const chatContents = apiMessages.map((m: any) => ({
           role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: m.message || m.content || '' }]
         }));
 
-        // Insert system instruction/context into chat history
-        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Initialize Gemini model with native systemInstruction support
+        const model = ai.getGenerativeModel({
+          model: 'gemini-2.0-flash',
+          systemInstruction: systemPrompt
+        });
+
         const response = await model.generateContent({
-          contents: [
-            { role: 'user', parts: [{ text: systemPrompt }] },
-            ...chatContents
-          ]
+          contents: chatContents
         });
 
         const replyText = response.response.text() || "I am currently processing your inquiry. Please try again.";
