@@ -217,7 +217,7 @@ export default function PredictorPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Form Panel: Profile Settings */}
-        <div className="lg:col-span-1 glass-panel rounded-2xl p-6 h-fit sticky top-20 shadow-md">
+        <div className="lg:col-span-1 glass-panel rounded-2xl p-6 h-fit lg:sticky lg:top-20 shadow-md">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
             <Filter className="h-5 w-5 text-indigo-600" /> Candidate Profile
           </h2>
