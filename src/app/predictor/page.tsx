@@ -193,12 +193,18 @@ export default function PredictorPage() {
     } catch (e) {}
   };
 
-  // Filter predictions by text query
+  // Filter predictions by text query (supporting acronyms / short form)
   const filteredPredictions = predictions.filter(item => {
-    const query = searchQuery.toLowerCase();
-    return item.collegeName.toLowerCase().includes(query) ||
-           item.choiceCode.includes(query) ||
-           item.courseName.toLowerCase().includes(query);
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    
+    const normQ = q.replace(/[^a-z0-9]/g, '');
+    const normCollege = item.collegeName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normCourse = item.courseName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    return normCollege.includes(normQ) ||
+           item.choiceCode.includes(q) ||
+           normCourse.includes(normQ);
   });
 
   const tabResults = filteredPredictions.filter(item => item.status === activeTab);

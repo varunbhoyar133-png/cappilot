@@ -24,19 +24,34 @@ export default function ComparePage() {
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Load list of all colleges for selector
+  // Fetch matching colleges dynamically from the server as user types
   useEffect(() => {
-    async function loadColleges() {
+    if (searchQuery.trim() === '') {
+      async function loadInitialColleges() {
+        try {
+          const res = await fetch('/api/colleges?limit=20');
+          if (res.ok) {
+            const data = await res.json();
+            setAllColleges(data.colleges || []);
+          }
+        } catch (e) {}
+      }
+      loadInitialColleges();
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
       try {
-        const res = await fetch('/api/colleges');
+        const res = await fetch(`/api/colleges?search=${encodeURIComponent(searchQuery)}&limit=30`);
         if (res.ok) {
           const data = await res.json();
           setAllColleges(data.colleges || []);
         }
       } catch (e) {}
-    }
-    loadColleges();
-  }, []);
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
 
   // Fetch comparison details when selectedCodes changes
   useEffect(() => {
@@ -80,11 +95,7 @@ export default function ComparePage() {
   };
 
   // Filter list for search input dropdown
-  const filteredColleges = allColleges.filter(col => {
-    const q = searchQuery.toLowerCase();
-    return (col.name.toLowerCase().includes(q) || col.code.includes(q)) && 
-           !selectedCodes.includes(col.code);
-  });
+  const filteredColleges = allColleges.filter(col => !selectedCodes.includes(col.code));
 
   return (
     <div className="space-y-8 w-full">

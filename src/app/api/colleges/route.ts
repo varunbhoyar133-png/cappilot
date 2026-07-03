@@ -127,6 +127,47 @@ const MOCK_COLLEGES = [
   }
 ];
 
+function getSearchVariations(search: string): string[] {
+  const trimmed = search.trim().toLowerCase();
+  if (!trimmed) return [];
+
+  const variations = new Set<string>();
+  variations.add(trimmed);
+
+  // Replace spaces with %
+  variations.add(trimmed.replace(/\s+/g, '%'));
+
+  // Contiguous alphanumeric version
+  const cleanContiguous = trimmed.replace(/[^a-z0-9]/g, '');
+  if (cleanContiguous && cleanContiguous !== trimmed) {
+    variations.add(cleanContiguous);
+  }
+
+  // Split into words and process acronyms
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length > 0) {
+    // Variation 1: Split words of length <= 3 into letters separated by %
+    const processedWords3 = words.map(w => {
+      if (w.length <= 3 && /^[a-z0-9]+$/.test(w)) {
+        return w.split('').join('%');
+      }
+      return w;
+    });
+    variations.add(processedWords3.join('%'));
+
+    // Variation 2: Split words of length <= 4
+    const processedWords4 = words.map(w => {
+      if (w.length <= 4 && /^[a-z0-9]+$/.test(w)) {
+        return w.split('').join('%');
+      }
+      return w;
+    });
+    variations.add(processedWords4.join('%'));
+  }
+
+  return Array.from(variations);
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -159,12 +200,13 @@ export async function GET(request: Request) {
       const where: any = {};
       
       if (search) {
-        where.OR = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { code: { contains: search, mode: 'insensitive' } },
-          { district: { contains: search, mode: 'insensitive' } },
-          { city: { contains: search, mode: 'insensitive' } }
-        ];
+        const variations = getSearchVariations(search);
+        where.OR = variations.flatMap(v => [
+          { name: { contains: v, mode: 'insensitive' } },
+          { code: { contains: v, mode: 'insensitive' } },
+          { district: { contains: v, mode: 'insensitive' } },
+          { city: { contains: v, mode: 'insensitive' } }
+        ]);
       }
       
       if (district && district !== 'ALL') {
@@ -221,8 +263,17 @@ export async function GET(request: Request) {
       let filteredMocks = [...MOCK_COLLEGES];
       
       if (search) {
-        const q = search.toLowerCase();
-        filteredMocks = filteredMocks.filter(c => c.name.toLowerCase().includes(q) || c.code.includes(q));
+        const variations = getSearchVariations(search);
+        filteredMocks = filteredMocks.filter(c => {
+          return variations.some(v => {
+            const regexStr = v.replace(/%/g, '.*');
+            const regex = new RegExp(regexStr, 'i');
+            return regex.test(c.name) || 
+                   regex.test(c.code) || 
+                   (c.district && regex.test(c.district)) || 
+                   (c.city && regex.test(c.city));
+          });
+        });
       }
       if (district && district !== 'ALL') {
         filteredMocks = filteredMocks.filter(c => c.district.toLowerCase() === district.toLowerCase());
