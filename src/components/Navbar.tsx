@@ -57,7 +57,7 @@ export default function Navbar() {
   const navLinks = [
     { name: 'Predictor', path: '/predictor' },
     { name: 'Search', path: '/search' },
-    { name: 'Compare', path: '/compare' },
+    { name: 'Compare', path: '/compare', badge: 'Soon' },
     { name: 'Preference List', path: '/preferences' }
   ];
 
@@ -84,13 +84,18 @@ export default function Navbar() {
                 <Link
                   key={link.path}
                   href={link.path}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600 dark:text-slate-300 dark:hover:bg-slate-900/50 dark:hover:text-indigo-400'
                   }`}
                 >
-                  {link.name}
+                  <span>{link.name}</span>
+                  {link.badge && (
+                    <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-indigo-100 dark:bg-indigo-900/60 text-indigo-650 dark:text-indigo-300 rounded-md tracking-wider">
+                      {link.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -153,13 +158,18 @@ export default function Navbar() {
                   key={link.path}
                   href={link.path}
                   onClick={() => setIsOpen(false)}
-                  className={`block px-3 py-2 rounded-lg text-base font-medium ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium ${
                     isActive
                       ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600 dark:text-slate-300 dark:hover:bg-slate-900/50'
                   }`}
                 >
-                  {link.name}
+                  <span>{link.name}</span>
+                  {link.badge && (
+                    <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-indigo-100 dark:bg-indigo-900/60 text-indigo-650 dark:text-indigo-300 rounded-md tracking-wider">
+                      {link.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}

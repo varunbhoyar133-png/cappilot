@@ -157,7 +157,8 @@ export default async function HomePage() {
       description: 'Compare up to 3 colleges side-by-side on cutoffs, placements, and fees.',
       href: '/compare',
       icon: GitCompare,
-      color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+      color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+      badge: 'Coming Soon'
     },
     {
       title: 'Preference List Generator',
@@ -237,7 +238,14 @@ export default async function HomePage() {
                 <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${item.color} shadow-sm`}>
                   <item.icon className="h-6 w-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white">{item.title}</h3>
+                <div className="flex items-center justify-between w-full">
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-white">{item.title}</h3>
+                  {item.badge && (
+                    <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase bg-indigo-100 dark:bg-indigo-900/60 text-indigo-650 dark:text-indigo-300 rounded-md tracking-wider animate-pulse-soft">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{item.description}</p>
               </div>
               <div className="pt-4 flex items-center text-xs font-semibold text-indigo-600 dark:text-indigo-400 gap-1 hover:underline">
