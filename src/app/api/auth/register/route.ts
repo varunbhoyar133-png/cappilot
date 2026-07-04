@@ -25,6 +25,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Restrict public registration for admin account
+    if (email.toLowerCase() === 'admin@cappilot.com') {
+      return NextResponse.json(
+        { error: 'Registration is restricted for this email address' },
+        { status: 403 }
+      );
+    }
+
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },

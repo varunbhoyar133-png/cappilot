@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 
 // Use the session pooler URL (aws-1-ap-southeast-2.pooler.supabase.com) on port 5432
 // since the direct hostname requires IPv6, which may not be supported on this network.
@@ -407,6 +408,34 @@ async function seed() {
     });
     totalCutoffs += chunk.length;
   }
+
+  // 4. Seed Secure Administrator
+  console.log(`- Upserting Administrator Account (admin@cappilot.com)...`);
+  const adminPassword = process.env.ADMIN_PASSWORD || 'CapPilotAdminSecureSecret2026!';
+  const salt = "mht-cet-salt-cap-guide-2026";
+  const passwordHash = crypto.createHash('sha256').update(adminPassword + salt).digest('hex');
+
+  await prisma.user.upsert({
+    where: { email: 'admin@cappilot.com' },
+    update: {
+      passwordHash,
+      role: 'ADMIN',
+      name: 'Administrator'
+    },
+    create: {
+      email: 'admin@cappilot.com',
+      passwordHash,
+      name: 'Administrator',
+      role: 'ADMIN',
+      percentile: 100.0,
+      category: 'OPEN',
+      gender: 'MALE',
+      homeUniversity: 'State Level',
+      isTfws: false,
+      isPwd: false,
+      isDefense: false
+    }
+  });
 
   console.log(`\nSeeding completed successfully!`);
   console.log(`Total database entries successfully synchronized:`);
