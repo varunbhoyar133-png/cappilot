@@ -168,6 +168,13 @@ function getSearchVariations(search: string): string[] {
   return Array.from(variations);
 }
 
+function getConsecutiveAcronymRegex(query: string): string | null {
+  const letters = query.trim().replace(/[^a-zA-Z]/g, '').split('');
+  if (letters.length < 2 || letters.length > 6) return null;
+  const separator = '(?:\\s+(?:of|and|&|the|-)\\s+|\\s+)';
+  return '\\m' + letters.map(l => `${l}[a-zA-Z]*`).join(separator);
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -197,58 +204,149 @@ export async function GET(request: Request) {
     let isDemoMode = false;
 
     try {
-      const where: any = {};
-      
       if (search) {
-        const variations = getSearchVariations(search);
-        where.OR = variations.flatMap(v => [
-          { name: { contains: v, mode: 'insensitive' } },
-          { code: { contains: v, mode: 'insensitive' } },
-          { district: { contains: v, mode: 'insensitive' } },
-          { city: { contains: v, mode: 'insensitive' } }
-        ]);
-      }
-      
-      if (district && district !== 'ALL') {
-        where.district = district;
-      }
-      
-      if (type && type !== 'ALL') {
-        where.type = type;
-      }
-      
-      if (isAutonomous !== null && isAutonomous !== 'ALL') {
-        where.isAutonomous = isAutonomous === 'true';
-      }
-      
-      if (hasHostel !== null && hasHostel !== 'ALL') {
-        where.hasHostel = hasHostel === 'true';
-      }
-
-      if (branch && branch !== 'ALL') {
-        where.choices = {
-          some: {
-            courseCode: branch
-          }
-        };
-      }
-
-      colleges = await prisma.college.findMany({
-        where,
-        take: limit,
-        skip: offset,
-        include: {
-          choices: {
+        const acronymRegex = getConsecutiveAcronymRegex(search);
+        
+        // Construct dynamic raw SQL query for Step 1
+        let selectClause = `SELECT DISTINCT c.code, 
+          (CASE 
+            WHEN c.code = $1 THEN 1000
+            WHEN c.name ILIKE $2 THEN 900
+            WHEN c.name ILIKE $3 THEN 800
+            WHEN $4::text IS NOT NULL AND c.name ~* $4::text THEN 750
+            WHEN c.name ILIKE $5 THEN 700
+            WHEN c.name ILIKE $6 THEN 500
+            ELSE 0
+          END) as relevance,
+          c.views,
+          c."nirfRank",
+          c.name`;
+          
+        let fromClause = ` FROM "College" c`;
+        
+        // Join CollegeCourse if branch is filtered
+        if (branch && branch !== 'ALL') {
+          fromClause += ` JOIN "CollegeCourse" cc ON c.code = cc."collegeCode"`;
+        }
+        
+        let whereClauses = [];
+        let params: any[] = [
+          search, // $1
+          search, // $2
+          `${search}%`, // $3
+          acronymRegex, // $4
+          `% ${search}%`, // $5
+          `%${search}%`, // $6
+        ];
+        
+        whereClauses.push(`(c.code = $1 OR c.name ILIKE $6 OR ($4::text IS NOT NULL AND c.name ~* $4::text))`);
+        
+        let paramIndex = 7;
+        
+        if (district && district !== 'ALL') {
+          params.push(district);
+          whereClauses.push(`c.district = $${paramIndex++}`);
+        }
+        
+        if (type && type !== 'ALL') {
+          params.push(type);
+          whereClauses.push(`c.type = $${paramIndex++}`);
+        }
+        
+        if (isAutonomous !== null && isAutonomous !== 'ALL') {
+          params.push(isAutonomous === 'true');
+          whereClauses.push(`c."isAutonomous" = $${paramIndex++}`);
+        }
+        
+        if (hasHostel !== null && hasHostel !== 'ALL') {
+          params.push(hasHostel === 'true');
+          whereClauses.push(`c."hasHostel" = $${paramIndex++}`);
+        }
+        
+        if (branch && branch !== 'ALL') {
+          params.push(branch);
+          whereClauses.push(`cc."courseCode" = $${paramIndex++}`);
+        }
+        
+        let whereClause = ` WHERE ${whereClauses.join(' AND ')}`;
+        
+        params.push(limit);
+        const limitParam = `$${paramIndex++}`;
+        params.push(offset);
+        const offsetParam = `$${paramIndex++}`;
+        
+        const orderByClause = ` ORDER BY relevance DESC, c.views DESC, c."nirfRank" ASC NULLS LAST, c.name ASC`;
+        const queryText = `${selectClause}${fromClause}${whereClause}${orderByClause} LIMIT ${limitParam} OFFSET ${offsetParam}`;
+        
+        const matchedRows: any[] = await prisma.$queryRawUnsafe(queryText, ...params);
+        
+        if (matchedRows.length > 0) {
+          const matchedCodes = matchedRows.map(r => r.code);
+          const detailedColleges = await prisma.college.findMany({
+            where: {
+              code: { in: matchedCodes }
+            },
             include: {
-              course: true
+              choices: {
+                include: {
+                  course: true
+                }
+              }
             }
-          }
-        },
-        orderBy: [
-          { views: 'desc' },
-          { nirfRank: { sort: 'asc', nulls: 'last' as any } }
-        ]
-      });
+          });
+          
+          // Sort to match raw query relevance order
+          const codeOrderMap = new Map(matchedCodes.map((code, idx) => [code, idx]));
+          colleges = detailedColleges.sort((a, b) => {
+            const indexA = codeOrderMap.get(a.code) ?? 99999;
+            const indexB = codeOrderMap.get(b.code) ?? 99999;
+            return indexA - indexB;
+          });
+        }
+      } else {
+        const where: any = {};
+        
+        if (district && district !== 'ALL') {
+          where.district = district;
+        }
+        
+        if (type && type !== 'ALL') {
+          where.type = type;
+        }
+        
+        if (isAutonomous !== null && isAutonomous !== 'ALL') {
+          where.isAutonomous = isAutonomous === 'true';
+        }
+        
+        if (hasHostel !== null && hasHostel !== 'ALL') {
+          where.hasHostel = hasHostel === 'true';
+        }
+
+        if (branch && branch !== 'ALL') {
+          where.choices = {
+            some: {
+              courseCode: branch
+            }
+          };
+        }
+
+        colleges = await prisma.college.findMany({
+          where,
+          take: limit,
+          skip: offset,
+          include: {
+            choices: {
+              include: {
+                course: true
+              }
+            }
+          },
+          orderBy: [
+            { views: 'desc' },
+            { nirfRank: { sort: 'asc', nulls: 'last' as any } }
+          ]
+        });
+      }
 
       if (colleges.length === 0 && offset === 0) {
         isDemoMode = true;
